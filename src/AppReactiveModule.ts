@@ -1,4 +1,4 @@
-import { combineLatest, map, startWith } from "rxjs";
+import { combineLatest, map, skip, startWith } from "rxjs";
 import { ReactiveModule } from "./rxjs-hooks/useReactiveModule";
 
 const module: ReactiveModule<{
@@ -25,7 +25,8 @@ const module: ReactiveModule<{
       lastName.pipe(startWith(""))
     ])
     .pipe(
-      map(([first, last]) => `Hello, ${first} ${last}`)
+      map(([first, last]) => `Hello, ${first} ${last}`),
+      skip(1)
     );
     return {
       firstName,

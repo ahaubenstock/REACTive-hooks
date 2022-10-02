@@ -39,13 +39,16 @@ export default function useReactiveModule<Inputs, Outputs>(
       return [key, value] as [keyof Inputs, typeof value];
     }, [key])
   );
-  const inputSourceEntries = inputSourcesAndSinks.map(([key, value]) => [key, value.source]);
+  const inputSourceEntries = inputSourcesAndSinks.map(([key, value]) => [
+    key,
+    value.source,
+  ]);
   const inputSources = Object.fromEntries(inputSourceEntries) as {
-    [Key in keyof Inputs]: Observable<Inputs[Key]>
+    [Key in keyof Inputs]: Observable<Inputs[Key]>;
   };
   const outputSources = logic(inputSources);
   const outputKeys = Object.keys(initialOutputValues) as (keyof Outputs)[];
-  const outputEntries = outputKeys.map(key => {
+  const outputEntries = outputKeys.map((key) => {
     const source = outputSources[key];
     const initialValue = initialOutputValues[key];
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -55,18 +58,22 @@ export default function useReactiveModule<Inputs, Outputs>(
       const subscription = source.subscribe(setValue);
       return () => subscription.unsubscribe();
     }, [source, initialValue]);
-    return [key, value]
+    return [key, value];
   });
   const outputs = Object.fromEntries(outputEntries) as {
-    [Key in keyof Outputs]: Outputs[Key]
+    [Key in keyof Outputs]: Outputs[Key];
   };
   const setterEntries = inputSourcesAndSinks.map(([key, value]) => {
     const keyString = key as string;
-    const setterKey = `set${keyString.charAt(0).toUpperCase()}${keyString.slice(1)}`;
-    return [setterKey, value.sink]
+    const setterKey = `set${keyString.charAt(0).toUpperCase()}${keyString.slice(
+      1
+    )}`;
+    return [setterKey, value.sink];
   });
   const setters = Object.fromEntries(setterEntries) as {
-    [Key in keyof Inputs as `set${Capitalize<string & Key>}`]: (value: Inputs[Key]) => void
+    [Key in keyof Inputs as `set${Capitalize<string & Key>}`]: (
+      value: Inputs[Key]
+    ) => void;
   };
   return [outputs, setters];
 }
