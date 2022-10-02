@@ -7,8 +7,6 @@ const module: ReactiveModule<
     lastName: string;
   },
   {
-    firstName: string;
-    lastName: string;
     greeting: string;
   }
 > = {
@@ -17,8 +15,6 @@ const module: ReactiveModule<
     lastName: null,
   },
   initialOutputValues: {
-    firstName: "",
-    lastName: "",
     greeting: "",
   },
   logic(inputs) {
@@ -31,9 +27,7 @@ const module: ReactiveModule<
       skip(1)
     );
     return {
-      firstName,
-      lastName,
-      greeting,
+      greeting
     };
   },
 };
