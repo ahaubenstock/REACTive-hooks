@@ -1,79 +1,79 @@
 import { useEffect, useMemo, useState } from "react";
-import { Observable, ReplaySubject } from "rxjs";
+import { map, merge, Observable, ReplaySubject, scan } from "rxjs";
+
+type InputSources<Inputs> = {
+  [Key in keyof Inputs]: Observable<Inputs[Key]>;
+};
+
+type Setters<Inputs> = {
+  [Key in keyof Inputs as `set${Capitalize<string & Key>}`]: (
+    value: Inputs[Key]
+  ) => void;
+};
 
 export type ReactiveModule<Inputs, Outputs> = {
   inputValueTemplate: {
     [Key in keyof Inputs]: null;
   };
-  initialOutputValues: {
-    [Key in keyof Outputs]: Outputs[Key];
-  };
-  logic: (inputs: {
-    [Key in keyof Inputs]: Observable<Inputs[Key]>;
-  }) => {
+  initialOutputValues: Outputs;
+  logic: (inputSources: InputSources<Inputs>) => {
     [Key in keyof Outputs]: Observable<Outputs[Key]>;
   };
 };
 
 export default function useReactiveModule<Inputs, Outputs>(
   module: ReactiveModule<Inputs, Outputs>
-): [
-  {
-    [Key in keyof Outputs]: Outputs[Key];
-  },
-  {
-    [Key in keyof Inputs as `set${Capitalize<string & Key>}`]: (
-      value: Inputs[Key]
-    ) => void;
-  }
-] {
+): [Outputs, Setters<Inputs>] {
   const { inputValueTemplate, initialOutputValues, logic } = module;
-  const inputKeys = Object.keys(inputValueTemplate) as (keyof Inputs)[];
-  const inputSourcesAndSinks = inputKeys.map((key) =>
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useMemo(() => {
+  const inputSourcesAndSinks = useMemo(() => {
+    const inputKeys = Object.keys(inputValueTemplate) as (keyof Inputs)[];
+    return inputKeys.map((key) => {
       const subject = new ReplaySubject<Inputs[typeof key]>(1);
       const source = subject.asObservable();
       const sink = (value: Inputs[typeof key]) => subject.next(value);
       const value = { source, sink };
       return [key, value] as [keyof Inputs, typeof value];
-    }, [key])
-  );
-  const inputSourceEntries = inputSourcesAndSinks.map(([key, value]) => [
-    key,
-    value.source,
-  ]);
-  const inputSources = Object.fromEntries(inputSourceEntries) as {
-    [Key in keyof Inputs]: Observable<Inputs[Key]>;
-  };
-  const outputSources = logic(inputSources);
-  const outputKeys = Object.keys(initialOutputValues) as (keyof Outputs)[];
-  const outputEntries = outputKeys.map((key) => {
-    const source = outputSources[key];
-    const initialValue = initialOutputValues[key];
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const [value, setValue] = useState(initialValue);
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-      const subscription = source.subscribe(setValue);
-      return () => subscription.unsubscribe();
-    }, [source, initialValue]);
-    return [key, value];
-  });
-  const outputs = Object.fromEntries(outputEntries) as {
-    [Key in keyof Outputs]: Outputs[Key];
-  };
-  const setterEntries = inputSourcesAndSinks.map(([key, value]) => {
-    const keyString = key as string;
-    const setterKey = `set${keyString.charAt(0).toUpperCase()}${keyString.slice(
-      1
-    )}`;
-    return [setterKey, value.sink];
-  });
-  const setters = Object.fromEntries(setterEntries) as {
-    [Key in keyof Inputs as `set${Capitalize<string & Key>}`]: (
-      value: Inputs[Key]
-    ) => void;
-  };
+    });
+  }, [inputValueTemplate]);
+  const [outputs, setOutputs] = useState(initialOutputValues);
+  useEffect(() => {
+    const inputSourceEntries = inputSourcesAndSinks.map(([key, value]) => [
+      key,
+      value.source,
+    ]);
+    const inputSources = Object.fromEntries(
+      inputSourceEntries
+    ) as InputSources<Inputs>;
+    const outputSources = logic(inputSources);
+    const outputSourceEntries = Object.entries(outputSources) as [
+      keyof Outputs,
+      Observable<Outputs[keyof Outputs]>
+    ][];
+    const actions = outputSourceEntries.map(([key, source]) =>
+      source.pipe(map((value) => [key, value]))
+    ) as Observable<[keyof Outputs, Outputs[keyof Outputs]]>[];
+    const subscription = merge(...actions)
+      .pipe(
+        scan(
+          (acc, [key, value]) => ({
+            ...acc,
+            [key]: value,
+          }),
+          initialOutputValues
+        )
+      )
+      .subscribe(setOutputs);
+    return () => subscription.unsubscribe();
+  }, [inputSourcesAndSinks, logic, initialOutputValues]);
+  const setters = useMemo(() => {
+    const setterEntries = inputSourcesAndSinks.map(([key, value]) => {
+      const keyString = key as string;
+      const setterKey = `set${keyString
+        .charAt(0)
+        .toUpperCase()}${keyString.slice(1)}`;
+      return [setterKey, value.sink];
+    });
+    return Object.fromEntries(setterEntries) as Setters<Inputs>;
+  }, [inputSourcesAndSinks]);
   return [outputs, setters];
 }
