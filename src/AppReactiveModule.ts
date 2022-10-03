@@ -6,19 +6,23 @@ const module: ReactiveModule<
     firstName: string;
     lastName: string;
   },
+  {},
+  {},
   {
     greeting: string;
   }
 > = {
-  inputValueTemplate: {
+  inputTemplate: {
     firstName: null,
     lastName: null,
   },
+  pureFeedbackTemplate: {},
+  outputFeedbackTemplate: {},
   initialOutputValues: {
     greeting: "",
   },
-  logic(inputs) {
-    const { firstName, lastName } = inputs;
+  logic(input) {
+    const { firstName, lastName } = input;
     const greeting = combineLatest([
       firstName.pipe(startWith("")),
       lastName.pipe(startWith("")),
