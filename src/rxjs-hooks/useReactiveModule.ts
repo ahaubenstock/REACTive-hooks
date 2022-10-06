@@ -17,11 +17,11 @@ type LogicOutput<PureFeedback, OutputFeedback, PureOutput> = {
   >;
 };
 type Template<T> = { [Key in keyof T]: any };
-export type ReactiveModule<Input, PureFeedback, OutputFeedback, PureOutput> = {
-  inputTemplate: Template<Input>;
-  pureFeedbackTemplate: Template<PureFeedback>;
-  outputFeedbackTemplate: Template<OutputFeedback>;
+export type ReactiveModule<PureOutput, Input = {}, OutputFeedback = {}, PureFeedback = {}> = {
   initialOutputValues: OutputFeedback & PureOutput;
+  inputTemplate: Template<Input>;
+  outputFeedbackTemplate: Template<OutputFeedback>;
+  pureFeedbackTemplate: Template<PureFeedback>;
   logic: (
     input: LogicInput<Input, PureFeedback, OutputFeedback>
   ) => LogicOutput<PureFeedback, OutputFeedback, PureOutput>;
@@ -65,12 +65,12 @@ function getSinksOf<T>(subjectEntries: [keyof T, Subject<T[keyof T]>][]): [keyof
 }
 
 export default function useReactiveModule<
+  PureOutput,
   Input,
-  PureFeedback,
   OutputFeedback,
-  PureOutput
+  PureFeedback
 >(
-  module: ReactiveModule<Input, PureFeedback, OutputFeedback, PureOutput>
+  module: ReactiveModule<PureOutput, Input, OutputFeedback, PureFeedback>
 ): [OutputFeedback & PureOutput, Setters<Input>] {
   type Feedback = PureFeedback & OutputFeedback;
   type Outputs = OutputFeedback & PureOutput;
@@ -108,8 +108,9 @@ export default function useReactiveModule<
     const sinks = Object.fromEntries(sinkEntries) as {
       [Key in keyof Feedback]: (value: any) => void
     };
-    const subscriptions = feedbackSources.map(([key, source]) => source.subscribe((value: any) => sinks[key](value)));
-    return () => subscriptions.forEach(s => s.unsubscribe());
+    const actions = feedbackSources.map(([key, source]) => source.pipe(map((value: any) => [value, sinks[key]]))) as Observable<[Feedback[keyof Feedback], (value: Feedback[keyof Feedback]) => void]>[];
+    const subscription = merge(...actions).subscribe(([value, sink]) => sink(value));
+    return () => subscription.unsubscribe();
   }, [feedbackSubjects, feedbackSources])
   const [outputs, setOutputs] = useState(initialOutputValues);
   useEffect(() => {

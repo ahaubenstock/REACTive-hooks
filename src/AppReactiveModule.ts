@@ -3,24 +3,24 @@ import { ReactiveModule } from "./rxjs-hooks/useReactiveModule";
 
 const module: ReactiveModule<
   {
+    greeting: string;
+  },
+  {
     firstName: string;
     lastName: string;
   },
   {},
-  {},
-  {
-    greeting: string;
-  }
+  {}
 > = {
+  initialOutputValues: {
+    greeting: "",
+  },
   inputTemplate: {
     firstName: null,
     lastName: null,
   },
-  pureFeedbackTemplate: {},
   outputFeedbackTemplate: {},
-  initialOutputValues: {
-    greeting: "",
-  },
+  pureFeedbackTemplate: {},
   logic(input) {
     const { firstName, lastName } = input;
     const greeting = combineLatest([
