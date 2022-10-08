@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { map, merge, Observable, Subject, scan, share } from "rxjs";
 
-type CommonProperties<A, B> = Pick<
-  A,
+/**
+ * Contains only the properties which are present in both types and have the same type
+ */
+type CommonProperties<A, B> = Pick<A,
   {
     [K in keyof A & keyof B]: A[K] extends B[K]
                               ? B[K] extends A[K]
@@ -10,6 +12,15 @@ type CommonProperties<A, B> = Pick<
                                 : never
                               : never;
   }[keyof A & keyof B]
+>;
+
+/**
+ * Contains only the properties which are present in type A but not type B
+ */
+type Omitting<A, B> = Pick<A,
+  {
+    [K in keyof A]: K extends keyof B ? never : K;
+  }[keyof A]
 >;
 
 type Template<A> = { [K in keyof A]: any };
@@ -57,7 +68,7 @@ function extractSourcesOf<A, B extends A>(
 export default function useReactiveModule<Output extends object, Input extends object>(
   module: ReactiveModule<Output, Input>
 ): [Output, 
-    { [K in keyof Input]: (value: Input[K]) => void }] {
+    { [K in keyof Omitting<Input, CommonProperties<Output, Input>>]: (value: Input[K]) => void }] {
   type Feedback = CommonProperties<Output, Input>
   const {
     initialOutputValues,
@@ -75,7 +86,7 @@ export default function useReactiveModule<Output extends object, Input extends o
   ) as Template<Feedback>;
   const [inputSources, inputSinks] = useSubjectsOf(inputTemplate);
   const [feedbackInputSources, feedbackSinks] = useSubjectsOf(feedbackTemplate);
-  const [feedbackOutputSources, outputSources] = useMemo(() => {
+  const sharedLogicOutput = useMemo(() => {
     const logicInput = {
       ...inputSources,
       ...feedbackInputSources
@@ -85,21 +96,18 @@ export default function useReactiveModule<Output extends object, Input extends o
       Object.entries(logicOutput)
         .map(([key, source]: any) => [key, source.pipe(share())])
     ) as ObservablesOf<Output>;
-    const feedbackOutputSources = extractSourcesOf(feedbackTemplate, sharedLogicOutput);
-    const outputSources = extractSourcesOf(initialOutputValues, sharedLogicOutput);
-    return [feedbackOutputSources, outputSources];
-  }, [inputSources, feedbackInputSources, logic, feedbackTemplate, initialOutputValues]);
+    return sharedLogicOutput
+  }, [inputSources, feedbackInputSources, logic]);
   useEffect(() => {
-    const actions = feedbackOutputSources
+    const actions = extractSourcesOf(feedbackTemplate, sharedLogicOutput)
       .map(([key, source]) => source.pipe(map((value: any) => [value, feedbackSinks[key]])));
     const subscription = merge(...actions).subscribe(([value, sink]) => sink(value));
     return () => subscription.unsubscribe();
-  }, [feedbackOutputSources, feedbackSinks])
+  }, [sharedLogicOutput, feedbackTemplate, feedbackSinks])
   const [outputs, setOutputs] = useState(initialOutputValues);
   useEffect(() => {
-    const actions = outputSources.map(([key, source]) =>
-      source.pipe(map((value: any) => [key, value]))
-    );
+    const actions = extractSourcesOf(initialOutputValues, sharedLogicOutput)
+      .map(([key, source]) => source.pipe(map((value: any) => [key, value])));
     const subscription = merge(...actions)
       .pipe(
         scan(
@@ -112,6 +120,7 @@ export default function useReactiveModule<Output extends object, Input extends o
       )
       .subscribe(setOutputs);
     return () => subscription.unsubscribe();
-  }, [outputSources, initialOutputValues]);
+  }, [sharedLogicOutput, initialOutputValues]);
+  // TODO: remove the sinks which are for feedback
   return [outputs, inputSinks];
 }
