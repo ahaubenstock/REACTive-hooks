@@ -5,10 +5,10 @@ import GreetingReactiveModule from "./modules/GreetingReactiveModule";
 import CounterReactiveModule from "./modules/CounterReactiveModule";
 
 const App: FunctionComponent = () => {
-  const [{ greeting }, { setFirstName, setLastName }] = useReactiveModule(
+  const [{ greeting }, { firstNameChanged, lastNameChanged }] = useReactiveModule(
     GreetingReactiveModule
   );
-  const [{ count }, { decrement, increment }] = useReactiveModule(
+  const [{ count }, { decrementClicked, incrementClicked }] = useReactiveModule(
     CounterReactiveModule
   );
   return (
@@ -18,12 +18,12 @@ const App: FunctionComponent = () => {
         <h4>{greeting}</h4>
         <input
           className="border border-gray-200"
-          onChange={(e) => setFirstName(e.currentTarget.value)}
+          onChange={(e) => firstNameChanged(e.currentTarget.value)}
           placeholder="First name"
         />
         <input
           className="border border-gray-200"
-          onChange={(e) => setLastName(e.currentTarget.value)}
+          onChange={(e) => lastNameChanged(e.currentTarget.value)}
           placeholder="Last name"
         />
       </div>
@@ -32,8 +32,8 @@ const App: FunctionComponent = () => {
         <h6>Yes, a counter can be done without feedback</h6>
         <h4 className="self-center">{count}</h4>
         <div className="flex flex-row space-x-5 self-center">
-          <button onClick={() => decrement()}>-</button>
-          <button onClick={() => increment()}>+</button>
+          <button onClick={() => decrementClicked()}>-</button>
+          <button onClick={() => incrementClicked()}>+</button>
         </div>
       </div>
     </div>

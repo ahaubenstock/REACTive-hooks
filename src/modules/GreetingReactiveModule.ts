@@ -6,22 +6,22 @@ const module: ReactiveModule<
     greeting: string;
   },
   {
-    setFirstName: string;
-    setLastName: string;
+    firstNameChanged: string;
+    lastNameChanged: string;
   }
 > = {
   initialOutputValues: {
     greeting: "",
   },
   inputTemplate: {
-    setFirstName: null,
-    setLastName: null,
+    firstNameChanged: null,
+    lastNameChanged: null,
   },
   logic(input) {
-    const { setFirstName, setLastName } = input;
+    const { firstNameChanged, lastNameChanged } = input;
     const greeting = combineLatest([
-      setFirstName.pipe(startWith("")),
-      setLastName.pipe(startWith("")),
+      firstNameChanged.pipe(startWith("")),
+      lastNameChanged.pipe(startWith("")),
     ]).pipe(
       map(([first, last]) => `Hello, ${first} ${last}`),
       skip(1)

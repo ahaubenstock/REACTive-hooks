@@ -29,7 +29,7 @@ type Template<A> = Record<keyof A, null>;
 
 type ObservablesOf<A> = { [K in keyof A]: Observable<A[K]> };
 
-type Setters<Output, Input> = {
+type Sinks<Output, Input> = {
   [K in keyof Omitting<Input, CommonProperties<Output, Input>>]: (
     value: Input[K]
   ) => void;
@@ -78,7 +78,7 @@ function extractSourcesOf<A, B extends A>(
 export default function useReactiveModule<
   Output extends object,
   Input extends object
->(module: ReactiveModule<Output, Input>): [Output, Setters<Output, Input>] {
+>(module: ReactiveModule<Output, Input>): [Output, Sinks<Output, Input>] {
   type Feedback = CommonProperties<Output, Input>;
   const { initialOutputValues, inputTemplate, logic } = module;
   const feedbackTemplate = useMemo(() => {
@@ -132,7 +132,7 @@ export default function useReactiveModule<
       .subscribe(setOutputs);
     return () => subscription.unsubscribe();
   }, [sharedLogicOutput, initialOutputValues]);
-  const setters = useMemo(
+  const sinks = useMemo(
     () =>
       Object.fromEntries(
         Object.entries(inputSinks).filter(
@@ -140,6 +140,6 @@ export default function useReactiveModule<
         )
       ),
     [inputSinks, feedbackTemplate]
-  ) as Setters<Output, Input>;
-  return [outputs, setters];
+  ) as Sinks<Output, Input>;
+  return [outputs, sinks];
 }
