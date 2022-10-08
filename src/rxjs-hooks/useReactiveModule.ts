@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { map, merge, Observable, Subject, scan } from "rxjs";
+import { map, merge, Observable, Subject, scan, share } from "rxjs";
 
 type Setters<Input> = {
-  [Key in keyof Input as `set${Capitalize<string & Key>}`]: (
+  [Key in keyof Input]: (
     value: Input[Key]
   ) => void;
 };
@@ -29,39 +29,34 @@ export type ReactiveModule<PureOutput, Input = {}, OutputFeedback = {}, PureFeed
 
 function useSubjectsOf<T>(
   template: Template<T>
-): [keyof T, Subject<T[keyof T]>][] {
+): [
+  {
+    [Key in keyof T]: Observable<T[Key]>
+  },
+  {
+    [Key in keyof T]: (value: T[Key]) => void
+  }
+] {
   return useMemo(
-    () => Object.keys(template).map((key) => [key, new Subject<T[keyof T]>()]),
+    () => {
+      const subjectEntries = Object.keys(template)
+        .map(key => [key, new Subject<any>()]) as [string, Subject<any>][];
+      const sourceEntries = subjectEntries
+        .map(([key, subject]) => [key, subject.asObservable()]);
+      const sinkEntries = subjectEntries
+        .map(([key, subject]) => [key, (value: any) => subject.next(value)]);
+      return [Object.fromEntries(sourceEntries), Object.fromEntries(sinkEntries)] as any;
+    },
     [template]
-  ) as [keyof T, Subject<T[keyof T]>][];
-}
-
-function getSourcesOf<T>(subjectEntries: [keyof T, Subject<T[keyof T]>][]): {
-  [Key in keyof T]: Observable<T[Key]>;
-} {
-  const sourceEntries = subjectEntries.map(([key, subject]) => [
-    key,
-    subject.asObservable(),
-  ]) as [keyof T, Observable<T[keyof T]>][];
-  return Object.fromEntries(sourceEntries) as {
-    [Key in keyof T]: Observable<T[Key]>;
-  };
+  );
 }
 
 function extractSourcesOf<T>(
   template: Template<T>,
-  sources: { [key: string]: Observable<any> }
+  sources: { [Key in keyof T]: Observable<any> }
 ): [keyof T, Observable<T[keyof T]>][] {
-  return Object.keys(sources)
-    .filter((key) => key in template)
-    .map((key) => [key, sources[key]]) as [keyof T, Observable<T[keyof T]>][];
-}
-
-function getSinksOf<T>(subjectEntries: [keyof T, Subject<T[keyof T]>][]): [keyof T, (value: T[keyof T]) => void][] {
-  return subjectEntries.map(([key, subject]) => [
-    key,
-    (value: T[keyof T]) => subject.next(value),
-  ]) as [keyof T, (value: T[keyof T]) => void][];
+  const keys = Object.keys(template) as (keyof T)[];
+  return keys.map((key: keyof T) => [key, sources[key]]);
 }
 
 export default function useReactiveModule<
@@ -72,8 +67,6 @@ export default function useReactiveModule<
 >(
   module: ReactiveModule<PureOutput, Input, OutputFeedback, PureFeedback>
 ): [OutputFeedback & PureOutput, Setters<Input>] {
-  type Feedback = PureFeedback & OutputFeedback;
-  type Outputs = OutputFeedback & PureOutput;
   const {
     inputTemplate,
     pureFeedbackTemplate,
@@ -87,36 +80,37 @@ export default function useReactiveModule<
       ...outputFeedbackTemplate,
     }),
     [pureFeedbackTemplate, outputFeedbackTemplate]
-  ) as Template<PureFeedback & OutputFeedback>;
-  const inputSubjects = useSubjectsOf(inputTemplate);
-  const feedbackSubjects = useSubjectsOf(feedbackTemplate);
-  const [feedbackSources, outputSources] = useMemo(() => {
+  ) as Template<OutputFeedback & PureFeedback>;
+  const [inputSources, inputSinks] = useSubjectsOf(inputTemplate);
+  const [feedbackInputSources, feedbackSinks] = useSubjectsOf(feedbackTemplate);
+  const [feedbackOutputSources, outputSources] = useMemo(() => {
     const logicInput = {
-      ...getSourcesOf(inputSubjects),
-      ...getSourcesOf(feedbackSubjects),
+      ...inputSources,
+      ...feedbackInputSources
     } as LogicInput<Input, PureFeedback, OutputFeedback>;
     const logicOutput = logic(logicInput);
-    const feedbackSources = extractSourcesOf(feedbackTemplate, logicOutput);
+    const sharedLogicOutput = Object.fromEntries(
+      Object.entries(logicOutput)
+        .map(([key, source]: any) => [key, source.pipe(share())])
+    ) as LogicOutput<PureFeedback, OutputFeedback, PureOutput>;
+    const feedbackOutputSources = extractSourcesOf(feedbackTemplate, sharedLogicOutput);
     const outputSources = extractSourcesOf(
-      initialOutputValues as Template<Outputs>,
-      logicOutput
+      initialOutputValues as Template<PureOutput & OutputFeedback>,
+      sharedLogicOutput
     );
-    return [feedbackSources, outputSources];
-  }, [inputSubjects, feedbackSubjects, logic, feedbackTemplate, initialOutputValues]);
+    return [feedbackOutputSources, outputSources];
+  }, [inputSources, feedbackInputSources, logic, feedbackTemplate, initialOutputValues]);
   useEffect(() => {
-    const sinkEntries = getSinksOf(feedbackSubjects)
-    const sinks = Object.fromEntries(sinkEntries) as {
-      [Key in keyof Feedback]: (value: any) => void
-    };
-    const actions = feedbackSources.map(([key, source]) => source.pipe(map((value: any) => [value, sinks[key]]))) as Observable<[Feedback[keyof Feedback], (value: Feedback[keyof Feedback]) => void]>[];
+    const actions = feedbackOutputSources
+      .map(([key, source]) => source.pipe(map((value: any) => [value, feedbackSinks[key]])));
     const subscription = merge(...actions).subscribe(([value, sink]) => sink(value));
     return () => subscription.unsubscribe();
-  }, [feedbackSubjects, feedbackSources])
+  }, [feedbackOutputSources, feedbackSinks])
   const [outputs, setOutputs] = useState(initialOutputValues);
   useEffect(() => {
     const actions = outputSources.map(([key, source]) =>
       source.pipe(map((value: any) => [key, value]))
-    ) as Observable<[keyof Outputs, Outputs[keyof Outputs]]>[];
+    );
     const subscription = merge(...actions)
       .pipe(
         scan(
@@ -130,15 +124,5 @@ export default function useReactiveModule<
       .subscribe(setOutputs);
     return () => subscription.unsubscribe();
   }, [outputSources, initialOutputValues]);
-  const setters = useMemo(() => {
-    const setterEntries = getSinksOf(inputSubjects).map(([key, sink]) => {
-      const keyString = key as string;
-      const setterKey = `set${keyString
-        .charAt(0)
-        .toUpperCase()}${keyString.slice(1)}`;
-      return [setterKey, sink];
-    });
-    return Object.fromEntries(setterEntries);
-  }, [inputSubjects]);
-  return [outputs, setters];
+  return [outputs, inputSinks];
 }

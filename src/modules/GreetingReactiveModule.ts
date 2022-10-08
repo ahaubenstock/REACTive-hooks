@@ -1,31 +1,29 @@
 import { combineLatest, map, skip, startWith } from "rxjs";
-import { ReactiveModule } from "./rxjs-hooks/useReactiveModule";
+import { ReactiveModule } from "../rxjs-hooks/useReactiveModule";
 
 const module: ReactiveModule<
   {
     greeting: string;
   },
   {
-    firstName: string;
-    lastName: string;
-  },
-  {},
-  {}
+    setFirstName: string;
+    setLastName: string;
+  }
 > = {
   initialOutputValues: {
     greeting: "",
   },
   inputTemplate: {
-    firstName: null,
-    lastName: null,
+    setFirstName: null,
+    setLastName: null,
   },
   outputFeedbackTemplate: {},
   pureFeedbackTemplate: {},
   logic(input) {
-    const { firstName, lastName } = input;
+    const { setFirstName, setLastName } = input;
     const greeting = combineLatest([
-      firstName.pipe(startWith("")),
-      lastName.pipe(startWith("")),
+      setFirstName.pipe(startWith("")),
+      setLastName.pipe(startWith("")),
     ]).pipe(
       map(([first, last]) => `Hello, ${first} ${last}`),
       skip(1)
