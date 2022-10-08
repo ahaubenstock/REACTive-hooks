@@ -12,7 +12,7 @@ const module: ReactiveModule<
   }
 > = {
   initialOutputValues: {
-    count: 0
+    count: 0,
   },
   inputTemplate: {
     count: null,
@@ -29,7 +29,7 @@ const module: ReactiveModule<
       map(([offset, count]) => count + offset)
     );
     return {
-      count: newCount
+      count: newCount,
     };
   },
 };

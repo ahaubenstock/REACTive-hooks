@@ -27,7 +27,7 @@ const module: ReactiveModule<
       skip(1)
     );
     return {
-      greeting
+      greeting,
     };
   },
 };

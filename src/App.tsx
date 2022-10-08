@@ -5,9 +5,12 @@ import GreetingReactiveModule from "./modules/GreetingReactiveModule";
 import CounterReactiveModule from "./modules/CounterReactiveModule";
 
 const App: FunctionComponent = () => {
-  const [{ greeting }, { setFirstName, setLastName }] =
-    useReactiveModule(GreetingReactiveModule);
-    const [{ count }, { decrement, increment }] = useReactiveModule(CounterReactiveModule)
+  const [{ greeting }, { setFirstName, setLastName }] = useReactiveModule(
+    GreetingReactiveModule
+  );
+  const [{ count }, { decrement, increment }] = useReactiveModule(
+    CounterReactiveModule
+  );
   return (
     <div className="flex flex-col items-center w-[100vw] h-[100vh] space-y-10 pt-5">
       <div className="flex flex-col w-[300px] space-y-2">
