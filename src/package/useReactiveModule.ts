@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { map, merge, Observable, Subject, scan, share } from "rxjs";
+import { map, merge, Observable, Subject, scan, share, ReplaySubject } from "rxjs";
 
 /**
  * Contains only the properties which are present in both types and have the same type
@@ -50,7 +50,7 @@ function useSubjectsOf<A>(template: Template<A>): [
   return useMemo(() => {
     const subjectEntries = Object.keys(template).map((key) => [
       key,
-      new Subject<any>(),
+      new ReplaySubject<any>(1),
     ]) as [string, Subject<any>][];
     const sourceEntries = subjectEntries.map(([key, subject]) => [
       key,

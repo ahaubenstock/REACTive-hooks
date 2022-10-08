@@ -1,7 +1,7 @@
 import { map, merge, startWith, withLatestFrom } from "rxjs";
 import { ReactiveModule } from "../package/useReactiveModule";
 
-const module: ReactiveModule<
+const CounterReactiveModule: ReactiveModule<
   {
     count: number;
   },
@@ -34,4 +34,4 @@ const module: ReactiveModule<
   },
 };
 
-export default module;
+export default CounterReactiveModule;

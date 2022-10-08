@@ -1,7 +1,7 @@
 import { combineLatest, map, skip, startWith } from "rxjs";
 import { ReactiveModule } from "../package/useReactiveModule";
 
-const module: ReactiveModule<
+const GreetingReactiveModule: ReactiveModule<
   {
     greeting: string;
   },
@@ -32,4 +32,4 @@ const module: ReactiveModule<
   },
 };
 
-export default module;
+export default GreetingReactiveModule;
