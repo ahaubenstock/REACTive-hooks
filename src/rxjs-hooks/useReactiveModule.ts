@@ -1,40 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { map, merge, Observable, Subject, scan, share } from "rxjs";
 
-type Setters<Input> = {
-  [Key in keyof Input]: (
-    value: Input[Key]
-  ) => void;
-};
-type LogicInput<Input, PureFeedback, OutputFeedback> = {
-  [Key in keyof (Input & PureFeedback & OutputFeedback)]: Observable<
-    (Input & PureFeedback & OutputFeedback)[Key]
-  >;
-};
-type LogicOutput<PureFeedback, OutputFeedback, PureOutput> = {
-  [Key in keyof (PureFeedback & OutputFeedback & PureOutput)]: Observable<
-    (PureFeedback & OutputFeedback & PureOutput)[Key]
-  >;
-};
-type Template<T> = { [Key in keyof T]: any };
-export type ReactiveModule<PureOutput, Input = {}, OutputFeedback = {}, PureFeedback = {}> = {
-  initialOutputValues: OutputFeedback & PureOutput;
+type CommonProperties<A, B> = Pick<
+  A,
+  {
+    [K in keyof A & keyof B]: A[K] extends B[K]
+                              ? B[K] extends A[K]
+                                ? K
+                                : never
+                              : never;
+  }[keyof A & keyof B]
+>;
+
+type Template<A> = { [K in keyof A]: any };
+
+type ObservablesOf<A> = { [K in keyof A]: Observable<A[K]> };
+
+export type ReactiveModule<Output extends object, Input extends object = {}> = {
+  initialOutputValues: Output;
   inputTemplate: Template<Input>;
-  outputFeedbackTemplate: Template<OutputFeedback>;
-  pureFeedbackTemplate: Template<PureFeedback>;
   logic: (
-    input: LogicInput<Input, PureFeedback, OutputFeedback>
-  ) => LogicOutput<PureFeedback, OutputFeedback, PureOutput>;
+    input: ObservablesOf<Input>
+  ) => ObservablesOf<Output>
 };
 
-function useSubjectsOf<T>(
-  template: Template<T>
+function useSubjectsOf<A>(
+  template: Template<A>
 ): [
+  ObservablesOf<A>,
   {
-    [Key in keyof T]: Observable<T[Key]>
-  },
-  {
-    [Key in keyof T]: (value: T[Key]) => void
+    [K in keyof A]: (value: A[K]) => void
   }
 ] {
   return useMemo(
@@ -51,53 +46,47 @@ function useSubjectsOf<T>(
   );
 }
 
-function extractSourcesOf<T>(
-  template: Template<T>,
-  sources: { [Key in keyof T]: Observable<any> }
-): [keyof T, Observable<T[keyof T]>][] {
-  const keys = Object.keys(template) as (keyof T)[];
-  return keys.map((key: keyof T) => [key, sources[key]]);
+function extractSourcesOf<A, B extends A>(
+  template: Template<A>,
+  sources: { [K in keyof B]: Observable<any> }
+): [keyof A, Observable<A[keyof A]>][] {
+  const keys = Object.keys(template) as (keyof A)[];
+  return keys.map((key: keyof A) => [key, sources[key]]);
 }
 
-export default function useReactiveModule<
-  PureOutput,
-  Input,
-  OutputFeedback,
-  PureFeedback
->(
-  module: ReactiveModule<PureOutput, Input, OutputFeedback, PureFeedback>
-): [OutputFeedback & PureOutput, Setters<Input>] {
+export default function useReactiveModule<Output extends object, Input extends object>(
+  module: ReactiveModule<Output, Input>
+): [Output, 
+    { [K in keyof Input]: (value: Input[K]) => void }] {
+  type Feedback = CommonProperties<Output, Input>
   const {
-    inputTemplate,
-    pureFeedbackTemplate,
-    outputFeedbackTemplate,
     initialOutputValues,
+    inputTemplate,
     logic,
   } = module;
   const feedbackTemplate = useMemo(
-    () => ({
-      ...pureFeedbackTemplate,
-      ...outputFeedbackTemplate,
-    }),
-    [pureFeedbackTemplate, outputFeedbackTemplate]
-  ) as Template<OutputFeedback & PureFeedback>;
+    () => {
+      const feedbackTemplateEntries = Object.keys(initialOutputValues)
+        .filter(key => key in inputTemplate)
+        .map(key => [key, null])
+      return Object.fromEntries(feedbackTemplateEntries)
+    },
+    [initialOutputValues, inputTemplate]
+  ) as Template<Feedback>;
   const [inputSources, inputSinks] = useSubjectsOf(inputTemplate);
   const [feedbackInputSources, feedbackSinks] = useSubjectsOf(feedbackTemplate);
   const [feedbackOutputSources, outputSources] = useMemo(() => {
     const logicInput = {
       ...inputSources,
       ...feedbackInputSources
-    } as LogicInput<Input, PureFeedback, OutputFeedback>;
+    };
     const logicOutput = logic(logicInput);
     const sharedLogicOutput = Object.fromEntries(
       Object.entries(logicOutput)
         .map(([key, source]: any) => [key, source.pipe(share())])
-    ) as LogicOutput<PureFeedback, OutputFeedback, PureOutput>;
+    ) as ObservablesOf<Output>;
     const feedbackOutputSources = extractSourcesOf(feedbackTemplate, sharedLogicOutput);
-    const outputSources = extractSourcesOf(
-      initialOutputValues as Template<PureOutput & OutputFeedback>,
-      sharedLogicOutput
-    );
+    const outputSources = extractSourcesOf(initialOutputValues, sharedLogicOutput);
     return [feedbackOutputSources, outputSources];
   }, [inputSources, feedbackInputSources, logic, feedbackTemplate, initialOutputValues]);
   useEffect(() => {

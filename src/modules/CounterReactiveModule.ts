@@ -1,44 +1,35 @@
-import { map, merge, share, startWith, withLatestFrom } from "rxjs";
+import { map, merge, startWith, withLatestFrom } from "rxjs";
 import { ReactiveModule } from "../rxjs-hooks/useReactiveModule";
 
 const module: ReactiveModule<
   {
-    count: string;
+    count: number;
   },
   {
+    count: number;
     decrement: void;
     increment: void;
-  },
-  {},
-  {
-    countNumber: number;
   }
 > = {
   initialOutputValues: {
-    count: "0",
+    count: 0
   },
   inputTemplate: {
+    count: null,
     decrement: null,
     increment: null,
   },
-  outputFeedbackTemplate: {},
-  pureFeedbackTemplate: {
-    countNumber: null,
-  },
   logic(input) {
-    const { decrement, increment, countNumber } = input;
-    const newCountNumber = merge(
+    const { decrement, increment, count } = input;
+    const newCount = merge(
       decrement.pipe(map(() => -1)),
       increment.pipe(map(() => 1))
     ).pipe(
-      withLatestFrom(countNumber.pipe(startWith(0))),
-      map(([offset, count]) => count + offset),
-      share()
+      withLatestFrom(count.pipe(startWith(0))),
+      map(([offset, count]) => count + offset)
     );
-    const count = newCountNumber.pipe(map((number) => `${number}`));
     return {
-      count,
-      countNumber: newCountNumber,
+      count: newCount
     };
   },
 };

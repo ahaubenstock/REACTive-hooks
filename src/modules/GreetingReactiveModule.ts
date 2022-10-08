@@ -17,8 +17,6 @@ const module: ReactiveModule<
     setFirstName: null,
     setLastName: null,
   },
-  outputFeedbackTemplate: {},
-  pureFeedbackTemplate: {},
   logic(input) {
     const { setFirstName, setLastName } = input;
     const greeting = combineLatest([
