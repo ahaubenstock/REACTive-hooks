@@ -10,8 +10,8 @@ const App: FunctionComponent = () => {
     const [{ count }, { decrement, increment }] = useReactiveModule(CounterReactiveModule)
   return (
     <div className="flex flex-col items-center w-[100vw] h-[100vh] space-y-10 pt-5">
-      <div className="flex flex-col w-[300px] space-y-4">
-        <h1 className="font-bold">Just input</h1>
+      <div className="flex flex-col w-[300px] space-y-2">
+        <h1 className="font-bold">Input</h1>
         <h4>{greeting}</h4>
         <input
           className="border border-gray-200"
@@ -24,7 +24,7 @@ const App: FunctionComponent = () => {
           placeholder="Last name"
         />
       </div>
-      <div className="flex flex-col w-[300px]">
+      <div className="flex flex-col w-[300px] space-y-2">
         <h1 className="font-bold">Input and feedback</h1>
         <h6>Yes, a counter can be done without feedback</h6>
         <h4 className="self-center">{count}</h4>
