@@ -1,4 +1,4 @@
-import { map, merge, startWith, withLatestFrom } from "rxjs";
+import { map, merge, share, startWith, withLatestFrom } from "rxjs";
 import { ReactiveModule } from "../rxjs-hooks/useReactiveModule";
 
 const module: ReactiveModule<
@@ -32,7 +32,8 @@ const module: ReactiveModule<
       increment.pipe(map(() => 1))
     ).pipe(
       withLatestFrom(countNumber.pipe(startWith(0))),
-      map(([offset, count]) => count + offset)
+      map(([offset, count]) => count + offset),
+      share()
     );
     const count = newCountNumber.pipe(map((number) => `${number}`));
     return {
