@@ -1,5 +1,5 @@
 import { combineLatest, map, skip, startWith } from "rxjs";
-import { ReactiveModule } from "../rxjs-hooks/useReactiveModule";
+import { ReactiveModule } from "../package/useReactiveModule";
 
 const module: ReactiveModule<
   {
