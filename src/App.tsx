@@ -1,15 +1,19 @@
 import React, { FunctionComponent } from "react";
 import useReactiveModule from "./package/useReactiveModule";
 
-import GreetingReactiveModule from "./module/GreetingReactiveModule";
-import CounterReactiveModule from "./module/CounterReactiveModule";
+import GreetingReactiveModule from "./GreetingReactiveModule";
+import CounterReactiveModule from "./CounterReactiveModule";
 import CircularSlider from "./component/CircularSlider/CircularSlider";
+import ComponentReactiveModule from "./ComponentReactiveModule";
 
 const App: FunctionComponent = () => {
   const [{ greeting }, { firstNameChanged, lastNameChanged }] =
     useReactiveModule(GreetingReactiveModule);
   const [{ count }, { decrementClicked, incrementClicked }] = useReactiveModule(
     CounterReactiveModule
+  );
+  const [{ progress }, { progressChanged }] = useReactiveModule(
+    ComponentReactiveModule
   );
   return (
     <div className="flex flex-col items-center w-[100vw] h-[100vh]">
@@ -39,8 +43,9 @@ const App: FunctionComponent = () => {
         </div>
         <div className="flex flex-col space-y-2">
           <h1 className="font-bold">Custom reactive component</h1>
+          <h4 className="self-center">{progress}</h4>
           <div className="self-center">
-            <CircularSlider />
+            <CircularSlider onProgressChanged={progressChanged} />
           </div>
         </div>
       </div>

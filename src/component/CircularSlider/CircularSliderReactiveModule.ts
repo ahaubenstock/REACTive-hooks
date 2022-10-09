@@ -1,16 +1,13 @@
 import {
   combineLatest,
-  debounceTime,
-  exhaustMap,
+  distinctUntilChanged,
   filter,
   map,
   merge,
-  scan,
-  share,
   shareReplay,
   startWith,
-  takeUntil,
   throttleTime,
+  withLatestFrom,
 } from "rxjs";
 import { ReactiveModule } from "../../package/useReactiveModule";
 
@@ -39,30 +36,35 @@ const CircularSliderReactiveModule: ReactiveModule<
   logic(input) {
     const { pathElementChanged, draggedThumb } = input;
     const showProgress = pathElementChanged.pipe(map((v) => v != null));
-    const filteredDragX = draggedThumb.pipe(
-      map(({ x }) => x),
-      filter((x) => x > 0), // Sends this coordinate at start and end of drag for some reason
-      share()
+    const validPathElement = pathElementChanged.pipe(
+      filter((v) => v != null),
+      map((v) => v!),
+      shareReplay(1)
     );
-    const progress = filteredDragX.pipe(
-      exhaustMap((x) =>
-        filteredDragX.pipe(
-          throttleTime(10),
-          scan(
-            (previous, next) => {
-              const [, last] = previous;
-              return [last, next] as [number, number];
-            },
-            [x, x] as [number, number]
-          ),
-          map(([previous, next]) => previous - next),
-          takeUntil(filteredDragX.pipe(debounceTime(100)))
-        )
-      ),
-      map((difference) => difference * 0.005),
-      scan((progress, difference) =>
-        Math.min(1, Math.max(0, progress + difference))
-      ),
+    const progress = draggedThumb.pipe(
+      throttleTime(20),
+      distinctUntilChanged((lhs, rhs) => lhs.x === rhs.x && lhs.y === rhs.y),
+      filter(({ x, y }) => x + y > 0), // Sends the zero coordinate at start and end of drag for some reason
+      withLatestFrom(validPathElement),
+      map(([dragPoint, path]) => {
+        const rect = path.getBoundingClientRect();
+        const pathCenter = {
+          x: rect.x + rect.width / 2,
+          y: rect.y + rect.height / 2,
+        };
+        const direction = {
+          x: dragPoint.x - pathCenter.x,
+          y: pathCenter.y - dragPoint.y, // Screen coordinate system
+        };
+        const thetaFromYAxis = Math.atan2(direction.x, direction.y);
+        const twoPi = 2 * Math.PI;
+        // Modulus with negative numbers
+        const progressTowardsTwoPi = ((thetaFromYAxis % twoPi) + twoPi) % twoPi;
+        const fractionOfTwoPi = progressTowardsTwoPi / twoPi;
+        const trackShorteningFactor = 0.08;
+        const progressOnShortenedTrack = fractionOfTwoPi / (1 - trackShorteningFactor) - trackShorteningFactor / 2;
+        return Math.min(1, Math.max(0, progressOnShortenedTrack));
+      }),
       startWith(0),
       shareReplay(1)
     );
@@ -70,14 +72,7 @@ const CircularSliderReactiveModule: ReactiveModule<
       filter((v) => v == null),
       map(() => undefined)
     );
-    const progressAndPath = combineLatest([
-      progress,
-      pathElementChanged.pipe(
-        filter((v) => v != null),
-        map((v) => v!)
-      ),
-    ]).pipe(shareReplay(1));
-    const validPathDasharray = progressAndPath.pipe(
+    const validPathDasharray = combineLatest([progress, validPathElement]).pipe(
       map(([progress, path]) => {
         const totalLength = path.getTotalLength();
         const filledLength = totalLength * progress;
@@ -86,7 +81,7 @@ const CircularSliderReactiveModule: ReactiveModule<
       })
     );
     const strokeDasharray = merge(nullPathDasharray, validPathDasharray);
-    const thumbPoint = progressAndPath.pipe(
+    const thumbPoint = combineLatest([progress, validPathElement]).pipe(
       map(([progress, path]) => {
         const filledLength = path.getTotalLength() * progress;
         return path.getPointAtLength(filledLength);

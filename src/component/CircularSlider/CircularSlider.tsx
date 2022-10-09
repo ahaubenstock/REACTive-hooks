@@ -1,15 +1,23 @@
-import { FunctionComponent, useRef } from "react";
+import { FunctionComponent, useEffect, useRef } from "react";
 import useReactiveModule from "../../package/useReactiveModule";
 import CircularSliderReactiveModule from "./CircularSliderReactiveModule";
 
-const CircularSlider: FunctionComponent = () => {
+type Props = {
+  onProgressChanged?: (progress: number) => void;
+};
+const CircularSlider: FunctionComponent<Props> = ({ onProgressChanged }) => {
   const [
-    { showProgress, strokeDasharray, thumbPoint },
+    { progress, showProgress, strokeDasharray, thumbPoint },
     { pathElementChanged, draggedThumb },
   ] = useReactiveModule(CircularSliderReactiveModule);
   const path = "M 60 10 A 40 40 0 1 1 40 10";
   const width = 200;
   const blankCanvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (onProgressChanged !== undefined) {
+      onProgressChanged(progress);
+    }
+  }, [onProgressChanged, progress]);
   return (
     <div className="relative" style={{ width }}>
       <svg viewBox="0 0 100 100" width={200}>

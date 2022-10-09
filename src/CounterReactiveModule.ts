@@ -1,5 +1,5 @@
 import { map, merge, startWith, withLatestFrom } from "rxjs";
-import { ReactiveModule } from "../package/useReactiveModule";
+import { ReactiveModule } from "./package/useReactiveModule";
 
 const CounterReactiveModule: ReactiveModule<
   {
