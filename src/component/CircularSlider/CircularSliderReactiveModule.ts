@@ -73,10 +73,10 @@ const CircularSliderReactiveModule: ReactiveModule<
         );
       }),
       distinctUntilChanged(),
-      // Prevent jumping from one end to the other
+      // Prevent jumping (e.g. from one end to the other)
       scan(
         (previous, next) =>
-          Math.abs(next - previous) < 0.99 ? next : previous,
+          Math.abs(next - previous) < 0.1 ? next : previous,
         0
       ),
       startWith(0),
