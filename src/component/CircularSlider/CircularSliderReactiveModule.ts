@@ -4,6 +4,7 @@ import {
   filter,
   map,
   merge,
+  scan,
   shareReplay,
   startWith,
   throttleTime,
@@ -66,9 +67,18 @@ const CircularSliderReactiveModule: ReactiveModule<
           1 - trackShorteningFactor / 2,
           Math.max(trackShorteningFactor / 2, fractionOfTwoPi)
         );
-        return (progressOnShortenedTrack - trackShorteningFactor / 2) / (1 - trackShorteningFactor);
+        return (
+          (progressOnShortenedTrack - trackShorteningFactor / 2) /
+          (1 - trackShorteningFactor)
+        );
       }),
       distinctUntilChanged(),
+      // Prevent jumping from one end to the other
+      scan(
+        (previous, next) =>
+          Math.abs(next - previous) < 0.99 ? next : previous,
+        0
+      ),
       startWith(0),
       shareReplay(1)
     );
