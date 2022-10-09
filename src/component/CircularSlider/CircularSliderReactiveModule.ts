@@ -61,10 +61,14 @@ const CircularSliderReactiveModule: ReactiveModule<
         // Modulus with negative numbers
         const progressTowardsTwoPi = ((thetaFromYAxis % twoPi) + twoPi) % twoPi;
         const fractionOfTwoPi = progressTowardsTwoPi / twoPi;
-        const trackShorteningFactor = 0.08;
-        const progressOnShortenedTrack = fractionOfTwoPi / (1 - trackShorteningFactor) - trackShorteningFactor / 2;
-        return Math.min(1, Math.max(0, progressOnShortenedTrack));
+        const trackShorteningFactor = 0.15;
+        const progressOnShortenedTrack = Math.min(
+          1 - trackShorteningFactor / 2,
+          Math.max(trackShorteningFactor / 2, fractionOfTwoPi)
+        );
+        return (progressOnShortenedTrack - trackShorteningFactor / 2) / (1 - trackShorteningFactor);
       }),
+      distinctUntilChanged(),
       startWith(0),
       shareReplay(1)
     );

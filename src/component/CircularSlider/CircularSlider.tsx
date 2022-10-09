@@ -10,7 +10,7 @@ const CircularSlider: FunctionComponent<Props> = ({ onProgressChanged }) => {
     { progress, showProgress, strokeDasharray, thumbPoint },
     { pathElementChanged, draggedThumb },
   ] = useReactiveModule(CircularSliderReactiveModule);
-  const path = "M 60 10 A 40 40 0 1 1 40 10";
+  const path = "M 70 20 A 40 40 0 1 1 30 20";
   const width = 200;
   const blankCanvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
